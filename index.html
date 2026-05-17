@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Al-Quran Explorer AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0F4C5C',
+                        secondary: '#E2C044',
+                        accent: '#7D4EFA',
+                        dark: '#0B0D17',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        arabic: ['Amiri', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+            background-color: #f8fafc;
+        }
+        .dark body {
+            background-color: #0B0D17;
+            color: #f8fafc;
+        }
+        .arabic-text {
+            direction: rtl;
+            line-height: 2.5;
+            font-size: 2.25rem;
+        }
+        .islamic-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30l15-15-15-15-15 15 15 15zm0 0l15 15-15 15-15-15 15-15z' fill='%230F4C5C' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+        /* Style untuk Ayat yang sedang diputar */
+        [data-ayah] {
+            transition: all 0.3s ease;
+        }
+        .playing-highlight {
+            background-color: rgba(15, 76, 92, 0.08) !important;
+            border-left: 4px solid #0F4C5C !important;
+            border-right: 4px solid #0F4C5C !important;
+            transform: scale(1.01);
+            box-shadow: 0 10px 25px -5px rgba(15, 76, 92, 0.1);
+            border-radius: 1rem;
+        }
+        .dark .playing-highlight {
+            background-color: rgba(226, 192, 68, 0.08) !important;
+            border-left: 4px solid #E2C044 !important;
+            border-right: 4px solid #E2C044 !important;
+            box-shadow: 0 10px 25px -5px rgba(226, 192, 68, 0.1);
+        }
+        .ai-shimmer {
+            background: linear-gradient(90deg, #f3e8ff 0%, #e9d5ff 50%, #f3e8ff 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body class="font-sans islamic-pattern">
+
+    <nav class="sticky top-0 z-40 bg-white/80 dark:bg-dark/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="app.showHome()">
+                <div class="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-book-quran text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none text-primary dark:text-secondary">Al-Quran AI</h1>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Smart Explorer</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <!-- Search Box -->
+                <div class="relative hidden md:block">
+                    <input type="text" id="search-input" oninput="app.filterSurahs()" placeholder="Cari Surah..." class="pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 w-64 dark:text-white transition-all">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <!-- Nav Buttons -->
+                <button onclick="app.showAbout()" title="Tentang Aplikasi" class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition">
+                    <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <button onclick="app.toggleDarkMode()" title="Mode Gelap/Terang" class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <i id="theme-icon" class="fa-solid fa-moon text-gray-600 dark:text-gray-300"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- HOME VIEW -->
+        <div id="home-view" class="space-y-8 animate-in fade-in duration-500">
+            <!-- Hero AI Section -->
+            <section class="relative overflow-hidden bg-gradient-to-br from-primary to-emerald-900 rounded-3xl p-8 md:p-12 text-white shadow-2xl">
+                <div class="relative z-10 max-w-2xl">
+                    <span class="inline-block px-3 py-1 bg-white/10 rounded-full text-xs font-semibold tracking-wider mb-4 border border-white/20"><i class="fa-solid fa-robot mr-1"></i> ASISTEN SPIRITUAL AI</span>
+                    <h2 class="text-3xl md:text-5xl font-bold mb-6">Bagaimana perasaan Anda hari ini?</h2>
+                    <p class="text-white/80 mb-8 text-lg">Curahkan isi hati Anda. AI kami akan membantu menemukan ketenangan melalui ayat-ayat suci yang relevan dengan kondisi batin Anda.</p>
+                    
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="app.getMoodRecommendation('Sangat Gelisah dan Cemas memikirkan masa depan')" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-medium transition backdrop-blur-sm border border-white/10 flex items-center gap-2 hover:scale-105">
+                            <i class="fa-solid fa-wind text-blue-300"></i> Gelisah / Cemas
+                        </button>
+                        <button onclick="app.getMoodRecommendation('Sedang bersedih, kecewa, dan merasa patah hati')" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-medium transition backdrop-blur-sm border border-white/10 flex items-center gap-2 hover:scale-105">
+                            <i class="fa-solid fa-cloud-rain text-blue-200"></i> Sedih / Kecewa
+                        </button>
+                        <button onclick="app.getMoodRecommendation('Sangat bersyukur dan bahagia atas nikmat Allah')" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-medium transition backdrop-blur-sm border border-white/10 flex items-center gap-2 hover:scale-105">
+                            <i class="fa-solid fa-sun text-yellow-300"></i> Bersyukur
+                        </button>
+                        <button onclick="app.getMoodRecommendation('Merasa kehilangan arah, malas, dan butuh motivasi hidup')" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-medium transition backdrop-blur-sm border border-white/10 flex items-center gap-2 hover:scale-105">
+                            <i class="fa-solid fa-fire text-orange-400"></i> Butuh Motivasi
+                        </button>
+                    </div>
+                </div>
+                <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-1/4 translate-x-1/4">
+                    <i class="fa-solid fa-mosque text-[300px]"></i>
+                </div>
+            </section>
+
+            <!-- Mood Result Container -->
+            <div id="mood-result-container" class="hidden animate-in fade-in slide-in-from-top-4 duration-500">
+                <div id="mood-result" class="p-6 md:p-8 bg-white dark:bg-gray-800 border border-accent/20 rounded-3xl shadow-lg">
+                    <!-- Results populated by AI -->
+                </div>
+            </div>
+
+            <!-- Surah List Section -->
+            <section>
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold dark:text-white"><i class="fa-solid fa-book-open mr-2 text-primary dark:text-secondary"></i>Daftar Surah</h3>
+                    <div class="text-sm font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">114 Surah</div>
+                </div>
+                <div id="surah-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Loading skeleton -->
+                    <div class="h-24 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+                    <div class="h-24 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+                    <div class="h-24 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- DETAIL SURAH VIEW -->
+        <div id="detail-view" class="hidden animate-in slide-in-from-right-8 duration-300">
+            <button onclick="app.showHome()" class="mb-8 px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm group flex items-center gap-2 text-primary dark:text-secondary font-semibold hover:gap-3 transition-all">
+                <i class="fa-solid fa-arrow-left"></i> Kembali ke Beranda
+            </button>
+            
+            <div id="surah-header" class="relative overflow-hidden bg-white dark:bg-gray-800 p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 text-center">
+                <div class="relative z-10">
+                    <h2 id="surah-name-ar" class="arabic-text mb-4 text-primary dark:text-secondary drop-shadow-sm"></h2>
+                    <h3 id="surah-name-id" class="text-3xl font-bold mb-2 dark:text-white"></h3>
+                    <p id="surah-info" class="text-gray-500 dark:text-gray-400 text-sm tracking-widest uppercase font-medium"></p>
+                </div>
+            </div>
+
+            <!-- AI Summary Section -->
+            <div id="surah-ai-summary" class="hidden mb-8 p-6 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-gray-800 border border-indigo-100 dark:border-indigo-900/50 rounded-3xl shadow-sm">
+                <div class="flex items-center gap-3 mb-4 text-indigo-700 dark:text-indigo-300 font-bold">
+                    <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <h4>Intisari Surah (AI)</h4>
+                </div>
+                <div id="summary-content" class="text-sm md:text-base leading-relaxed text-gray-700 dark:text-gray-300 space-y-2">
+                    <!-- AI Summary content -->
+                </div>
+            </div>
+
+            <div id="ayah-container" class="space-y-6">
+                <!-- Ayahs populated here -->
+            </div>
+        </div>
+
+        <!-- ABOUT VIEW -->
+        <div id="about-view" class="hidden animate-in fade-in zoom-in-95 duration-300 max-w-3xl mx-auto mt-10">
+            <button onclick="app.showHome()" class="mb-6 group flex items-center gap-2 text-gray-500 dark:text-gray-400 font-medium hover:text-primary transition-all">
+                <i class="fa-solid fa-arrow-left"></i> Kembali
+            </button>
+            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
+                <div class="bg-primary h-32 md:h-48 relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-20"><i class="fa-solid fa-mosque text-[200px] absolute -bottom-10 -right-10"></i></div>
+                </div>
+                <div class="px-8 pb-8 -mt-16 relative z-10 text-center">
+                    <div class="w-32 h-32 bg-white dark:bg-gray-700 rounded-full border-4 border-white dark:border-gray-800 mx-auto mb-4 flex items-center justify-center shadow-lg overflow-hidden">
+                        <!-- Initial M avatar -->
+                        <span class="text-5xl font-bold text-primary dark:text-secondary">M</span>
+                    </div>
+                    <h2 class="text-2xl font-bold dark:text-white">M. Akhdan</h2>
+                    <p class="text-primary dark:text-secondary font-medium mb-6">Founder & Developer</p>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-2xl text-left mb-8 text-gray-700 dark:text-gray-300 leading-relaxed shadow-inner">
+                        <h3 class="font-bold text-lg mb-3 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye text-accent"></i> Latar Belakang & Visi
+                        </h3>
+                        <p>
+                            Platform <strong>Al-Quran AI</strong> ini dibangun dengan satu tujuan mulia: <strong>memudahkan setiap orang untuk membaca, memahami, dan berinteraksi dengan Al-Quran di era digital.</strong> 
+                        </p>
+                        <p class="mt-3">
+                            Terkadang kita merasa jauh dari Al-Quran karena kendala bahasa atau sulitnya mencari ayat yang relevan dengan perasaan kita. Dengan bantuan Kecerdasan Buatan (AI), aplikasi ini tidak hanya menampilkan teks Al-Quran, tetapi bertindak sebagai pendamping spiritual yang memahami perasaan, memberikan intisari ayat, dan membantu menyelaraskan hati kita dengan firman Allah SWT.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <a href="https://wa.me/6282260348853" target="_blank" class="flex items-center justify-center gap-3 px-6 py-3 bg-[#25D366] hover:bg-[#1ebd5a] text-white rounded-full font-bold transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-brands fa-whatsapp text-xl"></i> WhatsApp (082260348853)
+                        </a>
+                        <a href="https://instagram.com/_m.akhdannn" target="_blank" class="flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] hover:opacity-90 text-white rounded-full font-bold transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-brands fa-instagram text-xl"></i> @_m.akhdannn
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Chat Bot UI -->
+    <div id="ai-chat-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div id="ai-chat-window" class="hidden w-[90vw] sm:w-80 md:w-[400px] h-[550px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 mb-4 animate-in slide-in-from-bottom-10 fade-in duration-300">
+            <div class="bg-gradient-to-r from-primary to-emerald-800 p-5 text-white flex justify-between items-center shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
+                        <i class="fa-solid fa-robot text-lg"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold block leading-none">Ustadz AI</span>
+                        <span class="text-[10px] text-emerald-200 uppercase flex items-center gap-1 mt-1">
+                            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Online
+                        </span>
+                    </div>
+                </div>
+                <button onclick="app.toggleChat()" class="hover:bg-white/20 w-8 h-8 rounded-full transition flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="chat-messages" class="flex-grow overflow-y-auto p-5 space-y-4 text-sm md:text-base scroll-smooth bg-gray-50/50 dark:bg-gray-900/20">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary dark:bg-gray-700 dark:text-white">
+                        <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-600 shadow-sm max-w-[85%] text-gray-800 dark:text-gray-200">
+                        Assalamu'alaikum warahmatullahi wabarakatuh! 😊<br><br>Saya adalah Asisten AI yang siap menemani Anda menjelajahi Al-Quran. Apakah Anda sedang mencari solusi dari suatu masalah, ingin tahu tafsir suatu ayat, atau butuh teman curhat yang berlandaskan pandangan Islam?
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+                <div class="flex gap-2 bg-gray-100 dark:bg-gray-900 p-1.5 rounded-full shadow-inner">
+                    <input type="text" id="chat-input" class="flex-grow bg-transparent px-4 py-2 text-sm focus:outline-none dark:text-white" placeholder="Ketik pertanyaan atau curhatan Anda...">
+                    <button onclick="app.sendChatMessage()" class="bg-primary hover:bg-emerald-700 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md active:scale-95">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button onclick="app.toggleChat()" class="w-16 h-16 bg-primary text-white rounded-full shadow-[0_10px_25px_rgba(15,76,92,0.5)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group relative border-4 border-white dark:border-gray-800">
+            <i class="fa-solid fa-message text-2xl group-hover:hidden"></i>
+            <i class="fa-solid fa-hands-praying text-2xl hidden group-hover:block animate-pulse"></i>
+            <span class="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+        </button>
+    </div>
+
+    <script>
+        const app = {
+            state: {
+                surahs: [],
+                currentSurah: null,
+                isDarkMode: false,
+                isChatOpen: false,
+                playingAyah: null, // Track currently playing ayah
+                apiKey: "AIzaSyDpjrLd16cNE4YQhyO56OX2tufrA8N6Aqw"
+            },
+
+            // --- CORE INITIALIZATION ---
+            async init() {
+                this.cacheDOM();
+                this.bindEvents();
+                await this.fetchSurahList();
+                this.loadTheme();
+            },
+
+            cacheDOM() {
+                this.dom = {
+                    homeView: document.getElementById('home-view'),
+                    detailView: document.getElementById('detail-view'),
+                    aboutView: document.getElementById('about-view'),
+                    surahGrid: document.getElementById('surah-grid'),
+                    ayahContainer: document.getElementById('ayah-container'),
+                    chatWindow: document.getElementById('ai-chat-window'),
+                    chatMessages: document.getElementById('chat-messages'),
+                    chatInput: document.getElementById('chat-input'),
+                    searchBox: document.getElementById('search-input'),
+                    moodResult: document.getElementById('mood-result'),
+                    moodContainer: document.getElementById('mood-result-container'),
+                    themeIcon: document.getElementById('theme-icon'),
+                    summaryPanel: document.getElementById('surah-ai-summary'),
+                    summaryContent: document.getElementById('summary-content')
+                };
+            },
+
+            bindEvents() {
+                this.dom.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendChatMessage();
+                });
+                this.dom.searchBox.addEventListener('input', () => this.filterSurahs());
+            },
+
+            // --- AI & GEMINI API INTEGRATION ---
+            async callGemini(query, system, useSearch = false) {
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${this.state.apiKey}`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: query }] }],
+                    systemInstruction: { parts: [{ text: system }] },
+                    generationConfig: {
+                        temperature: 0.6, // Sedikit diturunkan agar lebih empatik dan tidak terlalu random
+                        maxOutputTokens: 1024,
+                    }
+                };
+
+                if (useSearch) {
+                    payload.tools = [{ "google_search": {} }];
+                }
+
+                const fetchWithRetry = async (retries = 3, delay = 1000) => {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!response.ok) throw new Error('API Error');
+                        return await response.json();
+                    } catch (e) {
+                        if (retries > 0) {
+                            await new Promise(res => setTimeout(res, delay));
+                            return fetchWithRetry(retries - 1, delay * 2);
+                        }
+                        throw e;
+                    }
+                };
+
+                const result = await fetchWithRetry();
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, hati saya sedang mencoba memproses, namun terjadi kendala koneksi.";
+            },
+
+            async getMoodRecommendation(mood) {
+                this.dom.moodContainer.classList.remove('hidden');
+                this.dom.moodResult.innerHTML = `
+                    <div class="flex items-center gap-4 text-accent">
+                        <div class="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center animate-spin"><i class="fa-solid fa-spinner"></i></div>
+                        <span class="font-medium animate-pulse">Menyelami perasaan Anda dan mencari obatnya di dalam Al-Quran...</span>
+                    </div>
+                `;
+                this.dom.moodResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // SYSTEM PROMPT DIPERBARUI: Lebih responsif, mengerti psikologi, dan empatik.
+                const system = "Anda adalah AI pendamping spiritual Islam yang sangat empatik, berwawasan luas, dan mengerti psikologi manusia. Tugas Anda adalah memberikan ketenangan pikiran. Dengarkan perasaan pengguna tanpa menghakimi, validasi perasaannya, lalu berikan 1 atau 2 ayat Al-Quran (sertakan terjemahan Indonesia) yang paling tepat sebagai obat hati/solusi. Berikan penjelasan singkat mengapa ayat itu relevan. Akhiri dengan doa atau kalimat penyemangat yang hangat. Format teks menggunakan Markdown yang rapi.";
+                const prompt = `Saat ini perasaan saya: ${mood}. Berikan saya nasihat dan ayat Al-Quran untuk menenangkan hati saya.`;
+
+                try {
+                    const response = await this.callGemini(prompt, system, true);
+                    this.dom.moodResult.innerHTML = `
+                        <div class="flex justify-between items-start mb-6 border-b dark:border-gray-700 pb-4">
+                            <div class="flex items-center gap-3 text-accent font-bold text-lg">
+                                <div class="p-2 bg-accent/10 rounded-xl"><i class="fa-solid fa-hand-holding-heart"></i></div>
+                                <span>Pesan Kedamaian Untukmu</span>
+                            </div>
+                            <button onclick="app.dom.moodContainer.classList.add('hidden')" class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-100 hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="prose prose-md dark:prose-invert max-w-none prose-p:leading-relaxed prose-strong:text-primary dark:prose-strong:text-secondary">
+                            ${this.formatMarkdown(response)}
+                        </div>
+                    `;
+                } catch (e) {
+                    this.dom.moodResult.innerHTML = `<p class="text-red-500 text-center py-4"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Maaf, sistem sedang kesulitan merespons. Tolong coba beberapa saat lagi ya.</p>`;
+                }
+            },
+
+            async getAyahInsight(ayahNum, surahName, text, translation) {
+                const insightDivId = `insight-${ayahNum}`;
+                let insightDiv = document.getElementById(insightDivId);
+                
+                if (insightDiv) {
+                    insightDiv.classList.toggle('hidden');
+                    return;
+                }
+
+                const ayahEl = document.querySelector(`[data-ayah="${ayahNum}"]`);
+                insightDiv = document.createElement('div');
+                insightDiv.id = insightDivId;
+                insightDiv.className = "mt-6 p-5 md:p-6 bg-gradient-to-r from-accent/5 to-transparent dark:from-accent/10 border-l-4 border-accent rounded-r-2xl text-sm animate-in zoom-in-95 duration-300";
+                ayahEl.appendChild(insightDiv);
+
+                insightDiv.innerHTML = `<div class="flex items-center gap-3 text-accent"><i class="fa-solid fa-circle-notch fa-spin text-lg"></i> Menggali makna tersembunyi (Tadabbur)...</div>`;
+
+                // SYSTEM PROMPT DIPERBARUI
+                const system = "Anda adalah ahli tadabbur Al-Quran yang puitis dan inspiratif. Berikan penjelasan (insight) singkat (maksimal 2 paragraf) tentang ayat yang diminta. Fokus pada bagaimana ayat tersebut dapat diaplikasikan dalam kehidupan modern, kesehatan mental, atau motivasi harian. Gunakan bahasa Indonesia yang indah, menyejukkan, dan mudah dipahami.";
+                const prompt = `Berikan tadabbur singkat untuk Surah ${surahName} Ayat ${ayahNum}. Terjemahan: "${translation}"`;
+
+                try {
+                    const response = await this.callGemini(prompt, system);
+                    insightDiv.innerHTML = `
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-bold text-accent flex items-center gap-2"><i class="fa-solid fa-lightbulb"></i> Insight Tadabbur AI</span>
+                            <button onclick="document.getElementById('${insightDivId}').classList.add('hidden')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+                        </div>
+                        <div class="text-gray-700 dark:text-gray-300 leading-relaxed">
+                            ${this.formatMarkdown(response)}
+                        </div>
+                    `;
+                } catch (e) {
+                    insightDiv.innerHTML = `<span class="text-red-500">Gagal memuat insight.</span>`;
+                }
+            },
+
+            async getSurahSummary(surah) {
+                this.dom.summaryPanel.classList.remove('hidden');
+                this.dom.summaryContent.innerHTML = `<div class="flex items-center gap-3"><div class="w-5 h-5 bg-indigo-200 dark:bg-indigo-600 rounded-full animate-ping"></div> Menyusun rangkuman surah...</div>`;
+
+                const system = "Berikan 3 poin bullet (gunakan emoji yang relevan) tentang tema utama surah ini. Lalu di akhir, tuliskan 1 kalimat 'Pesan Hikmah' yang dicetak tebal. Bahasa santai namun sopan.";
+                const prompt = `Rangkum isi Surah ${surah.englishName} (${surah.name}). Apa esensi pesan Allah di dalamnya?`;
+
+                try {
+                    const response = await this.callGemini(prompt, system);
+                    this.dom.summaryContent.innerHTML = this.formatMarkdown(response);
+                } catch (e) {
+                    this.dom.summaryPanel.classList.add('hidden');
+                }
+            },
+
+            async sendChatMessage() {
+                const query = this.dom.chatInput.value.trim();
+                if (!query) return;
+
+                // Add User Bubble
+                this.addChatBubble(query, 'user');
+                this.dom.chatInput.value = '';
+
+                // Add AI Loading Bubble
+                const loadingId = 'ai-loading-' + Date.now();
+                this.addChatBubble('<i class="fa-solid fa-ellipsis animate-bounce text-xl"></i>', 'ai', loadingId);
+                
+                // SYSTEM PROMPT DIPERBARUI: Ustadz/Teman virtual yang sangat empati.
+                const system = "Anda adalah 'Ustadz AI', teman virtual berbasis Islam. Anda sangat sopan, pengertian, dan mengerti psikologi. Jika pengguna curhat, dengarkan dengan baik, beri empati, baru beri nasihat. Jika bertanya hukum/tafsir, jawab dengan ringkas berlandaskan Al-Quran atau Hadits sahih. Jangan kaku, gunakan gaya bahasa yang natural (menggunakan kata sapaan sopan, emoji jika perlu). Anda didukung pencarian internet untuk memastikan akurasi data.";
+                
+                try {
+                    const response = await this.callGemini(query, system, true);
+                    const loadingEl = document.getElementById(loadingId);
+                    loadingEl.innerHTML = this.formatMarkdown(response);
+                } catch (e) {
+                    const loadingEl = document.getElementById(loadingId);
+                    loadingEl.innerHTML = "Astagfirullah, sepertinya saya kesulitan terhubung. Boleh tanya sekali lagi?";
+                }
+                
+                this.dom.chatMessages.scrollTop = this.dom.chatMessages.scrollHeight;
+            },
+
+            // --- DATA FETCHING & RENDERING ---
+            async fetchSurahList() {
+                try {
+                    const res = await fetch('https://api.alquran.cloud/v1/surah');
+                    const data = await res.json();
+                    this.state.surahs = data.data;
+                    this.renderSurahList(this.state.surahs);
+                } catch (e) {
+                    this.dom.surahGrid.innerHTML = `<div class="col-span-full p-8 text-center bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl">Gagal memuat data Quran. Mohon periksa koneksi internet Anda dan muat ulang halaman.</div>`;
+                }
+            },
+
+            renderSurahList(surahs) {
+                if (surahs.length === 0) {
+                    this.dom.surahGrid.innerHTML = `<div class="col-span-full text-center py-8 text-gray-500">Pencarian tidak ditemukan.</div>`;
+                    return;
+                }
+                this.dom.surahGrid.innerHTML = surahs.map(s => `
+                    <div onclick="app.loadSurah(${s.number})" class="group p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-primary/50 dark:hover:border-secondary/50 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl flex items-center justify-center font-bold text-primary dark:text-secondary group-hover:bg-primary group-hover:text-white transition-colors relative overflow-hidden">
+                                <span class="relative z-10">${s.number}</span>
+                                <div class="absolute inset-0 bg-secondary/20 scale-0 group-hover:scale-150 transition-transform duration-500 rounded-full"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-secondary transition-colors">${s.englishName}</h4>
+                                <p class="text-xs text-gray-500 mt-1">${s.englishNameTranslation}</p>
+                            </div>
+                        </div>
+                        <div class="text-right flex flex-col justify-between h-full">
+                            <span class="arabic-text text-xl leading-none text-primary dark:text-secondary">${s.name}</span>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 bg-gray-50 dark:bg-gray-700 px-2 py-0.5 rounded inline-block w-fit ml-auto">${s.revelationType}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            async loadSurah(num) {
+                // Stop audio jika ada sebelum pindah surah
+                this.stopAudio();
+
+                this.dom.homeView.classList.add('hidden');
+                this.dom.aboutView.classList.add('hidden');
+                this.dom.detailView.classList.remove('hidden');
+                this.dom.ayahContainer.innerHTML = `<div class="flex flex-col items-center py-32 gap-6"><div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div><p class="text-gray-500 font-medium animate-pulse">Mempersiapkan teks suci...</p></div>`;
+                window.scrollTo({top: 0, behavior: 'smooth'});
+
+                try {
+                    const [arRes, idRes] = await Promise.all([
+                        fetch(`https://api.alquran.cloud/v1/surah/${num}/ar.alafasy`),
+                        fetch(`https://api.alquran.cloud/v1/surah/${num}/id.indonesian`)
+                    ]);
+                    
+                    const ar = await arRes.json();
+                    const id = await idRes.json();
+                    
+                    this.state.currentSurah = ar.data;
+                    this.renderSurahDetail(ar.data, id.data);
+                    this.getSurahSummary(ar.data);
+                } catch (e) {
+                    alert("Gagal memuat detail surah. Cek koneksi Anda.");
+                    this.showHome();
+                }
+            },
+
+            renderSurahDetail(ar, id) {
+                document.getElementById('surah-name-ar').textContent = ar.name;
+                document.getElementById('surah-name-id').textContent = ar.englishName;
+                document.getElementById('surah-info').textContent = `${ar.revelationType === 'Meccan' ? 'Makkiyah' : 'Madaniyah'} • ${ar.numberOfAyahs} Ayat • ${ar.englishNameTranslation}`;
+
+                this.dom.ayahContainer.innerHTML = ar.ayahs.map((ayah, i) => `
+                    <div id="ayah-box-${ayah.numberInSurah}" data-ayah="${ayah.numberInSurah}" class="p-6 md:p-8 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 transition-all hover:border-primary/30 relative overflow-hidden group">
+                        
+                        <div class="flex justify-between items-center mb-8 relative z-10">
+                            <span class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full font-bold text-sm shadow-inner">
+                                ${ayah.numberInSurah}
+                            </span>
+                            <div class="flex gap-2 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-full shadow-sm">
+                                <button onclick="app.getAyahInsight(${ayah.numberInSurah}, '${ar.englishName}', '${ayah.text.replace(/'/g, "\\'")}', '${id.ayahs[i].text.replace(/'/g, "\\'")}')" class="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 text-accent rounded-full hover:bg-accent hover:text-white transition-all shadow-sm border border-gray-100 dark:border-gray-700" title="Tadabbur AI">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </button>
+                                
+                                <!-- Tombol Stop (Disembunyikan default) -->
+                                <button id="stop-btn-${ayah.numberInSurah}" onclick="app.stopAudio()" class="hidden w-10 h-10 flex items-center justify-center bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition-all shadow-sm" title="Berhenti">
+                                    <i class="fa-solid fa-xmark font-bold"></i>
+                                </button>
+                                
+                                <!-- Tombol Play/Pause -->
+                                <button id="play-btn-${ayah.numberInSurah}" onclick="app.toggleAudio('${ayah.audio}', ${ayah.numberInSurah})" class="w-10 h-10 flex items-center justify-center bg-primary text-white dark:bg-secondary dark:text-dark rounded-full hover:scale-105 transition-all shadow-md active:scale-95">
+                                    <i class="fa-solid fa-play ml-0.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-right arabic-text mb-6 dark:text-white relative z-10" style="word-spacing: 6px;">
+                            ${ayah.text}
+                        </div>
+                        <div class="text-sm md:text-base text-gray-600 dark:text-gray-400 leading-relaxed font-medium relative z-10">
+                            ${id.ayahs[i].text}
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // --- NAVIGATION ---
+            showHome() {
+                this.stopAudio(); // Stop audio saat keluar halaman
+                this.dom.homeView.classList.remove('hidden');
+                this.dom.detailView.classList.add('hidden');
+                this.dom.aboutView.classList.add('hidden');
+                this.state.currentSurah = null;
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            },
+
+            showAbout() {
+                this.stopAudio(); // Stop audio saat keluar halaman
+                this.dom.homeView.classList.add('hidden');
+                this.dom.detailView.classList.add('hidden');
+                this.dom.aboutView.classList.remove('hidden');
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            },
+
+            // --- AUDIO SYNC LOGIC ---
+            toggleAudio(url, ayahNumber) {
+                // 1. Jika tombol play pada ayat yang sama diklik lagi (Pause/Resume logic)
+                if (this.state.playingAyah === ayahNumber) {
+                    if (this.currentAudio.paused) {
+                        this.currentAudio.play();
+                        this.updateAudioUI(ayahNumber, 'playing');
+                    } else {
+                        this.currentAudio.pause();
+                        this.updateAudioUI(ayahNumber, 'paused');
+                    }
+                    return;
+                }
+
+                // 2. Jika ayat berbeda diklik, stop yang lama dulu
+                if (this.currentAudio) {
+                    this.stopAudio();
+                }
+
+                // 3. Mainkan audio baru
+                this.currentAudio = new Audio(url);
+                this.state.playingAyah = ayahNumber;
+                
+                this.currentAudio.play();
+                this.updateAudioUI(ayahNumber, 'playing');
+
+                // Saat audio selesai otomatis
+                this.currentAudio.onended = () => {
+                    this.stopAudio();
+                    // Fitur lanjutan bisa ditambahkan di sini: Auto-play next ayah
+                };
+            },
+
+            stopAudio() {
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.currentTime = 0; // Kembalikan ke awal
+                }
+                
+                if (this.state.playingAyah) {
+                    this.updateAudioUI(this.state.playingAyah, 'stopped');
+                    this.state.playingAyah = null;
+                }
+                this.currentAudio = null;
+            },
+
+            updateAudioUI(ayahNumber, status) {
+                const playBtn = document.getElementById(`play-btn-${ayahNumber}`);
+                const stopBtn = document.getElementById(`stop-btn-${ayahNumber}`);
+                const ayahBox = document.getElementById(`ayah-box-${ayahNumber}`);
+
+                if (!playBtn || !ayahBox) return;
+
+                if (status === 'playing') {
+                    playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                    stopBtn.classList.remove('hidden');
+                    ayahBox.classList.add('playing-highlight');
+                } else if (status === 'paused') {
+                    playBtn.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>';
+                    stopBtn.classList.remove('hidden');
+                    ayahBox.classList.add('playing-highlight'); // Tetap di-highlight jika dipause
+                } else if (status === 'stopped') {
+                    playBtn.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>';
+                    stopBtn.classList.add('hidden');
+                    ayahBox.classList.remove('playing-highlight');
+                }
+            },
+
+            // --- UTILITIES ---
+            filterSurahs() {
+                const term = this.dom.searchBox.value.toLowerCase();
+                const filtered = this.state.surahs.filter(s => 
+                    s.englishName.toLowerCase().includes(term) || 
+                    s.name.toLowerCase().includes(term) ||
+                    s.number.toString() === term ||
+                    s.englishNameTranslation.toLowerCase().includes(term)
+                );
+                this.renderSurahList(filtered);
+            },
+
+            toggleDarkMode() {
+                this.state.isDarkMode = !this.state.isDarkMode;
+                document.documentElement.classList.toggle('dark');
+                this.dom.themeIcon.className = this.state.isDarkMode ? 'fa-solid fa-sun text-yellow-400' : 'fa-solid fa-moon text-gray-600';
+                localStorage.setItem('quran-theme', this.state.isDarkMode ? 'dark' : 'light');
+            },
+
+            loadTheme() {
+                if (localStorage.getItem('quran-theme') === 'dark') {
+                    this.state.isDarkMode = false; // Akan dibalik oleh toggle
+                    this.toggleDarkMode();
+                }
+            },
+
+            toggleChat() {
+                this.state.isChatOpen = !this.state.isChatOpen;
+                this.dom.chatWindow.classList.toggle('hidden');
+                if (this.state.isChatOpen) {
+                    setTimeout(() => this.dom.chatInput.focus(), 100);
+                }
+            },
+
+            addChatBubble(content, role, id = '') {
+                const div = document.createElement('div');
+                
+                if (role === 'user') {
+                    div.className = "bg-primary text-white p-4 rounded-2xl rounded-tr-none max-w-[85%] self-end ml-auto mb-4 shadow-md";
+                } else {
+                    div.className = "flex items-start gap-3 mb-4";
+                    const avatar = `<div class="w-8 h-8 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary dark:bg-gray-700 dark:text-white"><i class="fa-solid fa-robot text-xs"></i></div>`;
+                    const msgBubble = `<div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-600 shadow-sm max-w-[85%] text-gray-800 dark:text-gray-200" id="${id}">${content}</div>`;
+                    div.innerHTML = avatar + msgBubble;
+                    this.dom.chatMessages.appendChild(div);
+                    this.dom.chatMessages.scrollTop = this.dom.chatMessages.scrollHeight;
+                    return;
+                }
+                
+                if (id && role === 'user') {
+                    div.id = id;
+                }
+                div.innerHTML = content;
+                
+                this.dom.chatMessages.appendChild(div);
+                this.dom.chatMessages.scrollTop = this.dom.chatMessages.scrollHeight;
+            },
+
+            formatMarkdown(text) {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-primary dark:text-secondary">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/\n\n/g, '</p><p class="mt-2">')
+                    .replace(/\n/g, '<br>')
+                    .replace(/^- (.*)/gm, '<li class="ml-4 list-disc marker:text-primary dark:marker:text-secondary">$1</li>')
+                    .replace(/^<br>/, ''); // Clean up leading break
+            }
+        };
+
+        // --- START APP ---
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>
